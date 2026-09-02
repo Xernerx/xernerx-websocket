@@ -3,7 +3,7 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"version": "0.4.11",
+	"version": "0.4.12",
 	"type": "module",
 	"main": "./dist/main.cjs",
 	"module": "./dist/main.js",
@@ -25,24 +25,23 @@
 		}
 	},
 	"scripts": {
-		"beta": "npm version prerelease --preid=beta",
-		"patch": "npm version patch",
-		"minor": "npm version minor",
-		"major": "npm version major",
-		"docs": "npx typedoc",
-		"build": "npm i && npx tsup && npx @arethetypeswrong/cli --pack && npm run docs",
-		"dev": "npm i && npm link && npx tsup --watch",
-		"test": "npm install --engine-strict=true",
-		"pub": "git add . && git commit -m \"type update\" && npm run patch && git push origin main"
+		"commit": "prettier --write . && changeset",
+		"ship": "pnpm run build && changeset version && git add . && git commit -m \"chore: release\" && changeset tag && git push --follow-tags",
+		"docs": "typedoc",
+		"build": "pnpm i && tsup && attw --pack && pnpm run docs",
+		"dev": "pnpm i && pnpm link && tsup --watch",
+		"test": "pnpm install --engine-strict=true"
 	},
 	"keywords": [
 		"framework"
 	],
 	"author": "Xernerx Studios",
 	"license": "MIT",
-	"packageManager": "npm@11.11.0",
+	"packageManager": "pnpm@11.24.0",
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.2",
+		"@changesets/cli": "^3.0.1",
+		"@types/node": "^26.4.0",
 		"@types/ws": "^8.18.1",
 		"prettier": "^3.6.2",
 		"tsup": "^8.5.1",
@@ -55,6 +54,6 @@
 		"node": ">=24"
 	},
 	"dependencies": {
-		"@xernerx/terminal": "^1.0.12"
+		"@xernerx/terminal": "^1.1.11"
 	}
 }
