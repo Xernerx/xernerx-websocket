@@ -54,5 +54,6 @@
 	},
 	"dependencies": {
 		"@xernerx/terminal": "^1.1.11"
-	}
+	},
+	"packageManager": "npm@10.9.8"
 }
