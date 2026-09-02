@@ -27,7 +27,7 @@ export class XernerxWebsocket {
 	private pending = new Map<number, PendingRequest>();
 
 	constructor({ token, url, WebSocketImpl }: { token: string; url?: string; WebSocketImpl?: WSLike }) {
-		this.url = url ?? 'wss://ws.xernercx.com';
+		this.url = url ?? 'wss://ws.xernerx.com';
 		this.token = token;
 
 		// Prefer injected implementation (Node), otherwise use browser native
