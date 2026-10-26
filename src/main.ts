@@ -2,21 +2,23 @@
 
 import { terminal } from '@xernerx/terminal';
 
-const t = terminal.child({ scope: 'WS' });
+const t = terminal.child({ scope: 'XW' });
 
-type WSLike = {
+export type WSLike = {
 	new (url: string): any;
 };
 
 type PendingRequest = {
 	resolve: (value: any) => void;
 	reject: (reason?: any) => void;
+	timer?: ReturnType<typeof setTimeout>;
 };
 
 export class XernerxWebsocket {
 	private ws!: any;
 	private url: string;
 	protected readonly token: string;
+	private readonly timeout: number;
 
 	private WSImpl: WSLike;
 
@@ -26,9 +28,10 @@ export class XernerxWebsocket {
 	private requestId = 0;
 	private pending = new Map<number, PendingRequest>();
 
-	constructor({ token, url, WebSocketImpl }: { token: string; url?: string; WebSocketImpl?: WSLike }) {
-		this.url = url ?? 'wss://ws.xernerx.com';
+	constructor({ token, url, dev, timeout = 15_000, WebSocketImpl }: { token: string; url?: string; dev?: boolean; timeout?: number; WebSocketImpl?: WSLike }) {
+		this.url = url ?? (dev ? 'wss://ws.dev.xernerx.com' : 'wss://ws.xernerx.com');
 		this.token = token;
+		this.timeout = timeout;
 
 		// Prefer injected implementation (Node), otherwise use browser native
 		this.WSImpl = WebSocketImpl ?? ((globalThis as any).WebSocket as unknown as WSLike);
@@ -52,26 +55,42 @@ export class XernerxWebsocket {
 		}
 
 		this.connecting = new Promise<void>((resolve, reject) => {
-			this.ws = new this.WSImpl(this.url);
+			const finalUrl = this.url + (this.url.includes('?') ? '&' : '?') + `token=${encodeURIComponent(this.token)}`;
+			this.ws = new this.WSImpl(finalUrl);
 
-			this.ws.onopen = async () => {
-				try {
-					this.setupMessageHandler();
+			this.ws.onopen = () => {
+				this.setupMessageHandler();
 
-					const res = await this.request('auth', {
-						method: 'POST',
+				const id = ++this.requestId;
+				const timer =
+					this.timeout > 0
+						? setTimeout(() => {
+								this.pending.delete(id);
+								this.ws?.close();
+								reject(new Error(`WebSocket auth timed out after ${this.timeout}ms`));
+							}, this.timeout)
+						: undefined;
+
+				this.pending.set(id, {
+					resolve: () => {
+						this.ready = true;
+						resolve();
+					},
+					reject: (err) => {
+						this.ready = false;
+						this.ws?.close();
+						reject(err);
+					},
+					timer,
+				});
+
+				this.ws.send(
+					JSON.stringify({
+						id,
+						service: 'auth',
 						body: { token: this.token },
-					});
-
-					if (!res?.success) {
-						throw new Error('Authentication failed');
-					}
-
-					this.ready = true;
-					resolve();
-				} catch (err) {
-					reject(err);
-				}
+					})
+				);
 			};
 
 			this.ws.onerror = (err: any) => {
@@ -82,8 +101,12 @@ export class XernerxWebsocket {
 				this.ready = false;
 				this.connecting = null;
 
-				for (const { reject } of this.pending.values()) {
-					reject('Connection closed');
+				const closeError = new Error('Connection closed');
+				reject(closeError);
+
+				for (const { reject: rejectPending, timer } of this.pending.values()) {
+					if (timer) clearTimeout(timer);
+					rejectPending(closeError);
 				}
 				this.pending.clear();
 			};
@@ -110,10 +133,11 @@ export class XernerxWebsocket {
 			const pending = this.pending.get(id);
 			if (!pending) return;
 
+			if (pending.timer) clearTimeout(pending.timer);
 			this.pending.delete(id);
 
-			if (msg.message) {
-				pending.reject(msg.message);
+			if ((msg.message && !('_id' in msg) && msg.success !== true) || msg.success === false) {
+				pending.reject(new Error(msg.message || 'WebSocket request failed'));
 			} else {
 				if (Object.keys(msg).length <= 1) {
 					pending.resolve(null);
@@ -127,15 +151,23 @@ export class XernerxWebsocket {
 
 	/* ================= CORE ================= */
 
-	private request(service: string, payload: any): Promise<any> {
-		if (!this.ready && service !== 'auth') {
-			throw new Error('WebSocket not authenticated');
+	private request<T = any>(service: string, payload: Record<string, any>): Promise<T> {
+		if (!this.ready) {
+			throw new Error('WebSocket not ready');
 		}
 
 		const id = ++this.requestId;
 
-		return new Promise((resolve, reject) => {
-			this.pending.set(id, { resolve, reject });
+		return new Promise<T>((resolve, reject) => {
+			const timer =
+				this.timeout > 0
+					? setTimeout(() => {
+							this.pending.delete(id);
+							reject(new Error(`WebSocket request timed out after ${this.timeout}ms`));
+						}, this.timeout)
+					: undefined;
+
+			this.pending.set(id, { resolve, reject, timer });
 
 			this.ws.send(
 				JSON.stringify({
@@ -149,36 +181,36 @@ export class XernerxWebsocket {
 
 	/* ================= CRUD ================= */
 
-	public async get(service: string, action: string, body: any = {}) {
+	public async get<T = any>(service: string, action: string, body: Record<string, any> = {}): Promise<T> {
 		await this.connect();
-		return this.request(service, {
+		return this.request<T>(service, {
 			method: 'GET',
 			action,
 			body,
 		});
 	}
 
-	public async create(service: string, action: string, body: any = {}) {
+	public async create<T = any>(service: string, action: string, body: Record<string, any> = {}): Promise<T> {
 		await this.connect();
-		return this.request(service, {
+		return this.request<T>(service, {
 			method: 'POST',
 			action,
 			body,
 		});
 	}
 
-	public async update(service: string, action: string, body: any = {}) {
+	public async update<T = any>(service: string, action: string, body: Record<string, any> = {}): Promise<T> {
 		await this.connect();
-		return this.request(service, {
+		return this.request<T>(service, {
 			method: 'PATCH',
 			action,
 			body,
 		});
 	}
 
-	public async delete(service: string, action: string, body: any = {}) {
+	public async delete<T = any>(service: string, action: string, body: Record<string, any> = {}): Promise<T> {
 		await this.connect();
-		return this.request(service, {
+		return this.request<T>(service, {
 			method: 'DELETE',
 			action,
 			body,
@@ -187,6 +219,15 @@ export class XernerxWebsocket {
 
 	public disconnect() {
 		this.ready = false;
+		this.connecting = null;
+
+		const closeError = new Error('Connection closed');
+		for (const { reject, timer } of this.pending.values()) {
+			if (timer) clearTimeout(timer);
+			reject(closeError);
+		}
+		this.pending.clear();
+
 		this.ws?.close();
 	}
 }

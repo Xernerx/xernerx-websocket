@@ -11,7 +11,7 @@
 	"githubPages": true,
 	"excludeReferences": true,
 	"includeVersion": true,
-	"projectDocuments": ["documents/*.md"],
+	"projectDocuments": ["CHANGELOG.md"],
 	"router": "structure-dir",
 	"footerLastModified": true,
 
