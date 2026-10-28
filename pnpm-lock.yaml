@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@xernerx/terminal':
-        specifier: ^1.1.13
-        version: 1.1.13
+        specifier: ^1.1.14
+        version: 1.1.14
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: ^0.18.2
@@ -512,8 +512,8 @@ packages:
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
-  '@xernerx/terminal@1.1.13':
-    resolution: {integrity: sha512-LoHLy5+KXbImzb1NO2dRXrbkN2KXziDktnW9xcFE8v0W0uhKGHgrqaMWJQkfUG05WJokqaLo5u5pyc0S0o68Eg==}
+  '@xernerx/terminal@1.1.14':
+    resolution: {integrity: sha512-8F/BQQcC30mP8eR9XQMQj4uK/Iav8wpzxKn/LZiJMY44bvSW9EZG+z0R1pB1J5e/nOmr8A/SbYRqLZrjPyKc2Q==}
     engines: {node: '>=24'}
 
   acorn@8.18.0:
@@ -1445,7 +1445,7 @@ snapshots:
     dependencies:
       '@types/node': 26.4.0
 
-  '@xernerx/terminal@1.1.13':
+  '@xernerx/terminal@1.1.14':
     dependencies:
       boxen: 8.0.1
       chalk: 5.6.2

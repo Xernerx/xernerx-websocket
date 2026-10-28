@@ -4,9 +4,32 @@ import { terminal } from '@xernerx/terminal';
 
 const t = terminal.child({ scope: 'XW' });
 
+/**
+ * Constructor signature for a WebSocket-compatible implementation (browser `WebSocket` or `ws` in Node.js).
+ */
 export type WSLike = {
+	/**
+	 * Creates a new WebSocket connection to the specified URL.
+	 * @param url - Full WebSocket endpoint URL.
+	 */
 	new (url: string): any;
 };
+
+/**
+ * Configuration options for initializing a {@link XernerxWebsocket} client.
+ */
+export interface XernerxWebsocketOptions {
+	/** Xernerx authentication token passed during the initial handshake. */
+	token: string;
+	/** Optional custom WebSocket server URL. */
+	url?: string;
+	/** When `true`, connects to `wss://ws.dev.xernerx.com` instead of `wss://ws.xernerx.com`. */
+	dev?: boolean;
+	/** Request and authentication timeout in milliseconds (defaults to `15000`). */
+	timeout?: number;
+	/** Optional WebSocket constructor implementation for Node environments without global `WebSocket`. */
+	WebSocketImpl?: WSLike;
+}
 
 type PendingRequest = {
 	resolve: (value: any) => void;
@@ -14,9 +37,15 @@ type PendingRequest = {
 	timer?: ReturnType<typeof setTimeout>;
 };
 
+/**
+ * Promise-based RPC client for communicating with the Xernerx Suite WebSocket gateway (`wss://ws.xernerx.com`).
+ *
+ * Automatically handles connection management, token authentication, request multiplexing, and per-request timeouts.
+ */
 export class XernerxWebsocket {
 	private ws!: any;
 	private url: string;
+	/** Authentication token used to authorize the WebSocket session. */
 	protected readonly token: string;
 	private readonly timeout: number;
 
@@ -28,7 +57,11 @@ export class XernerxWebsocket {
 	private requestId = 0;
 	private pending = new Map<number, PendingRequest>();
 
-	constructor({ token, url, dev, timeout = 15_000, WebSocketImpl }: { token: string; url?: string; dev?: boolean; timeout?: number; WebSocketImpl?: WSLike }) {
+	/**
+	 * Creates a new {@link XernerxWebsocket} client instance.
+	 * @param options - Connection, authentication, timeout, and WebSocket implementation options.
+	 */
+	constructor({ token, url, dev, timeout = 15_000, WebSocketImpl }: XernerxWebsocketOptions) {
 		this.url = url ?? (dev ? 'wss://ws.dev.xernerx.com' : 'wss://ws.xernerx.com');
 		this.token = token;
 		this.timeout = timeout;
@@ -43,6 +76,11 @@ export class XernerxWebsocket {
 
 	/* ================= CONNECTION ================= */
 
+	/**
+	 * Opens the WebSocket connection and completes the `auth` handshake if not already connected.
+	 * Concurrent calls share the same in-flight connection promise.
+	 * @returns A promise that resolves once the connection is open and authenticated.
+	 */
 	public async connect() {
 		if (this.ready) {
 			t.log('Connected to websocket');
@@ -181,6 +219,13 @@ export class XernerxWebsocket {
 
 	/* ================= CRUD ================= */
 
+	/**
+	 * Sends a `GET` action request to a target WebSocket service, automatically connecting first if needed.
+	 * @param service - Target service namespace (e.g. `'virtue'`, `'bots'`, `'users'`).
+	 * @param action - Service action name to execute.
+	 * @param body - Optional query/filter parameters.
+	 * @returns A promise resolving to the service response payload.
+	 */
 	public async get<T = any>(service: string, action: string, body: Record<string, any> = {}): Promise<T> {
 		await this.connect();
 		return this.request<T>(service, {
@@ -190,6 +235,13 @@ export class XernerxWebsocket {
 		});
 	}
 
+	/**
+	 * Sends a `POST` (create) action request to a target WebSocket service, automatically connecting first if needed.
+	 * @param service - Target service namespace.
+	 * @param action - Service action name to execute.
+	 * @param body - Document or payload data to create.
+	 * @returns A promise resolving to the created resource or service response.
+	 */
 	public async create<T = any>(service: string, action: string, body: Record<string, any> = {}): Promise<T> {
 		await this.connect();
 		return this.request<T>(service, {
@@ -199,6 +251,13 @@ export class XernerxWebsocket {
 		});
 	}
 
+	/**
+	 * Sends a `PATCH` (update) action request to a target WebSocket service, automatically connecting first if needed.
+	 * @param service - Target service namespace.
+	 * @param action - Service action name to execute.
+	 * @param body - Filter and update fields.
+	 * @returns A promise resolving to the updated resource or service response.
+	 */
 	public async update<T = any>(service: string, action: string, body: Record<string, any> = {}): Promise<T> {
 		await this.connect();
 		return this.request<T>(service, {
@@ -208,6 +267,13 @@ export class XernerxWebsocket {
 		});
 	}
 
+	/**
+	 * Sends a `DELETE` action request to a target WebSocket service, automatically connecting first if needed.
+	 * @param service - Target service namespace.
+	 * @param action - Service action name to execute.
+	 * @param body - Identifier or filter parameters for deletion.
+	 * @returns A promise resolving to the deletion result.
+	 */
 	public async delete<T = any>(service: string, action: string, body: Record<string, any> = {}): Promise<T> {
 		await this.connect();
 		return this.request<T>(service, {
@@ -217,6 +283,9 @@ export class XernerxWebsocket {
 		});
 	}
 
+	/**
+	 * Closes the active WebSocket connection and rejects any pending in-flight requests.
+	 */
 	public disconnect() {
 		this.ready = false;
 		this.connecting = null;
