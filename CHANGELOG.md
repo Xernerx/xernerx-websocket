@@ -1,5 +1,13 @@
 <!-- @format -->
 
+## 0.5.1
+
+### Patch Changes
+
+- <!-- @format -->
+  
+  Authenticate `Xernerx/docs` clone in `.github/workflows/push.yml`.
+
 ## 0.5.0
 
 ### Minor Changes
