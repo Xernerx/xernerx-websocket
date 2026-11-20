@@ -1,5 +1,11 @@
 <!-- @format -->
 
+## 0.5.2
+
+### Patch Changes
+
+- Link GitHub Packages (`npm.pkg.github.com`) publish step to canonical `${GITHUB_REPOSITORY}` with `GITHUB_TOKEN`.
+
 ## 0.5.1
 
 ### Patch Changes

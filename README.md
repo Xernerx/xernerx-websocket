@@ -1,6 +1,6 @@
 <!-- @format -->
 
-![Xernerx Banner](https://xernerx.com/banner.png)
+![@xernerx/websocket Banner](https://docs.xernerx.com/packages/banners/websocket.svg)
 
 # @xernerx/websocket
 
