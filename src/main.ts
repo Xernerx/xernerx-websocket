@@ -31,6 +31,28 @@ export interface XernerxWebsocketOptions {
 	WebSocketImpl?: WSLike;
 }
 
+/**
+ * Payload accepted by {@link XernerxWebsocket.reportError} for centralized service error telemetry.
+ */
+export interface ErrorReportPayload {
+	/** Service identifier (alias for `service`, e.g. `'virtue'`, `'yourapps'`, `'bot'`, `'app-bot'`). */
+	id?: string;
+	/** Service identifier (e.g. `'virtue'`, `'yourapps'`, `'bot'`, `'app-bot'`). */
+	service?: string;
+	/** Error message string. */
+	message: string;
+	/** Full stack trace string, if available. */
+	stack?: string | null;
+	/** Optional parsed file path (`file:line:col`). */
+	filepath?: string | null;
+	/** Severity level (`'error'` | `'warn'` | `'fatal'`). */
+	level?: 'error' | 'warn' | 'fatal';
+	/** Deployment environment (`'production'` | `'canary'` | `'development'`). */
+	environment?: 'production' | 'canary' | 'development';
+	/** Arbitrary contextual metadata (`{ command, guildId, userId, shardId }`). */
+	meta?: Record<string, any>;
+}
+
 type PendingRequest = {
 	resolve: (value: any) => void;
 	reject: (reason?: any) => void;
@@ -281,6 +303,23 @@ export class XernerxWebsocket {
 			action,
 			body,
 		});
+	}
+
+	/**
+	 * Reports a service or bot error to the central Xernerx Suite error log (`xernerx/errors`) over WebSocket.
+	 * Non-blocking and safe: swallows transport errors so telemetry can never crash the host service.
+	 * @param payload - Error log descriptor (`{ id, service, message, stack, level, environment, meta }`).
+	 */
+	public async reportError(payload: ErrorReportPayload): Promise<void> {
+		if (!this.token) return;
+		try {
+			await this.create('xernerx', 'errors', {
+				...payload,
+				service: payload.service || payload.id || 'unknown',
+			});
+		} catch {
+			// Swallow transport failures so error telemetry never disrupts the application
+		}
 	}
 
 	/**
